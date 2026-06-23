@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>負動産 実費計算機</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans JP',sans-serif;background:#f6f7f9;color:#222;margin:0;padding:24px;}
+  .wrap{max-width:900px;margin:0 auto;background:#fff;border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,.08);overflow:hidden;}
+  header{padding:28px 32px;background:#1f2937;color:#fff;}
+  h1{margin:0;font-size:26px;} header p{margin:8px 0 0;color:#d1d5db;}
+  main{padding:28px 32px;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  label{display:block;font-weight:700;margin-bottom:8px;}
+  select,input{width:100%;box-sizing:border-box;border:1px solid #cfd5df;border-radius:10px;padding:12px;font-size:16px;background:#fff;}
+  .hint{font-size:13px;color:#667085;margin-top:6px;line-height:1.5;}
+  .full{grid-column:1/-1;}
+  .card{background:#f9fafb;border:1px solid #e5e7eb;border-radius:14px;padding:18px;margin-top:24px;}
+  .result{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-top:20px;}
+  .kpi{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;}
+  .kpi .name{font-size:14px;color:#667085;margin-bottom:8px;}
+  .kpi .val{font-size:26px;font-weight:800;}
+  .total{border:2px solid #111827;}
+  .note{font-size:13px;color:#475467;line-height:1.7;margin-top:18px;}
+  button{border:0;border-radius:12px;background:#111827;color:#fff;font-weight:700;padding:14px 22px;font-size:16px;cursor:pointer;}
+  .actions{margin-top:22px;display:flex;gap:12px;align-items:center;}
+  @media(max-width:720px){.grid,.result{grid-template-columns:1fr;} main,header{padding:22px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>負動産 実費計算機</h1>
+  <p>相続土地国庫帰属制度を想定した、審査手数料・負担金の概算計算</p>
+</header>
+<main>
+  <div class="grid">
+    <div class="full">
+      <label for="type">土地区分</label>
+      <select id="type">
+        <option value="standard">通常の土地：負担金20万円</option>
+        <option value="residential">宅地：市街化区域または用途地域内</option>
+        <option value="farmland">農用地：市街化区域・農用地区域・土地改良事業区域等</option>
+        <option value="forest">森林</option>
+      </select>
+      <div class="hint">宅地・農用地・森林は面積に応じて負担金を計算します。それ以外は原則20万円で計算します。</div>
+    </div>
+    <div>
+      <label for="area">面積</label>
+      <input id="area" type="number" min="0" step="0.01" placeholder="例：250">
+      <div class="hint">一括申請の場合は合計面積を入力</div>
+    </div>
+    <div>
+      <label for="plots">筆数</label>
+      <input id="plots" type="number" min="1" step="1" value="1">
+      <div class="hint">審査手数料は1筆あたり14,000円で計算</div>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button onclick="calc()">計算する</button>
+    <span class="hint">入力変更後は再計算してください</span>
+  </div>
+
+  <section class="card">
+    <strong>計算結果</strong>
+    <div class="result">
+      <div class="kpi">
+        <div class="name">審査手数料</div>
+        <div class="val" id="fee">-</div>
+      </div>
+      <div class="kpi">
+        <div class="name">負担金</div>
+        <div class="val" id="burden">-</div>
+      </div>
+      <div class="kpi total">
+        <div class="name">概算実費合計</div>
+        <div class="val" id="total">-</div>
+      </div>
+    </div>
+    <div class="note" id="formulaNote">土地区分・面積・筆数を入力してください。</div>
+  </section>
+
+  <p class="note">
+    ※この計算機は概算用です。実際には、建物・工作物・担保権・境界不明・土壌汚染・崖地・通路・管理困難性などにより、制度利用ができない場合があります。<br>
+    ※登記事項証明書、地図・測量図取得、測量、境界確認、専門家報酬等は含めていません。
+  </p>
+</main>
+</div>
+<script>
+function yen(n){ return Math.round(n).toLocaleString('ja-JP') + '円'; }
+function roundDown1000(n){ return Math.floor(n / 1000) * 1000; }
+function burden(type, area){
+  if(!area || area <= 0) return {amount:0, note:'面積を入力してください。'};
+  if(type === 'standard') return {amount:200000, note:'通常の土地として、負担金20万円で計算しました。'};
+  if(type === 'residential'){
+    if(area <= 50) return {amount:roundDown1000(area*4070+208000), note:'宅地：50㎡以下の算式'};
+    if(area <= 100) return {amount:roundDown1000(area*2720+276000), note:'宅地：50㎡超100㎡以下の算式'};
+    if(area <= 200) return {amount:roundDown1000(area*2450+303000), note:'宅地：100㎡超200㎡以下の算式'};
+    if(area <= 400) return {amount:roundDown1000(area*2250+343000), note:'宅地：200㎡超400㎡以下の算式'};
+    if(area <= 800) return {amount:roundDown1000(area*2110+399000), note:'宅地：400㎡超800㎡以下の算式'};
+    return {amount:roundDown1000(area*2010+479000), note:'宅地：800㎡超の算式'};
+  }
+  if(type === 'farmland'){
+    if(area <= 250) return {amount:roundDown1000(area*1210+208000), note:'農用地：250㎡以下の算式'};
+    if(area <= 500) return {amount:roundDown1000(area*850+298000), note:'農用地：250㎡超500㎡以下の算式'};
+    if(area <= 1000) return {amount:roundDown1000(area*810+318000), note:'農用地：500㎡超1,000㎡以下の算式'};
+    if(area <= 2000) return {amount:roundDown1000(area*740+388000), note:'農用地：1,000㎡超2,000㎡以下の算式'};
+    if(area <= 4000) return {amount:roundDown1000(area*650+568000), note:'農用地：2,000㎡超4,000㎡以下の算式'};
+    return {amount:roundDown1000(area*640+608000), note:'農用地：4,000㎡超の算式'};
+  }
+  if(type === 'forest'){
+    if(area <= 750) return {amount:roundDown1000(area*59+210000), note:'森林：750㎡以下の算式'};
+    if(area <= 1500) return {amount:roundDown1000(area*24+237000), note:'森林：750㎡超1,500㎡以下の算式'};
+    if(area <= 3000) return {amount:roundDown1000(area*17+248000), note:'森林：1,500㎡超3,000㎡以下の算式'};
+    if(area <= 6000) return {amount:roundDown1000(area*12+263000), note:'森林：3,000㎡超6,000㎡以下の算式'};
+    if(area <= 12000) return {amount:roundDown1000(area*8+287000), note:'森林：6,000㎡超12,000㎡以下の算式'};
+    return {amount:roundDown1000(area*6+311000), note:'森林：12,000㎡超の算式'};
+  }
+  return {amount:0, note:'土地区分を選択してください。'};
+}
+function calc(){
+  const type = document.getElementById('type').value;
+  const area = Number(document.getElementById('area').value);
+  const plots = Math.max(1, Math.floor(Number(document.getElementById('plots').value || 1)));
+  const examinationFee = plots * 14000;
+  const b = burden(type, area);
+  document.getElementById('fee').textContent = yen(examinationFee);
+  document.getElementById('burden').textContent = yen(b.amount);
+  document.getElementById('total').textContent = yen(examinationFee + b.amount);
+  document.getElementById('formulaNote').textContent = b.note + '　※筆数は審査手数料に反映しています。負担金は入力面積を一括面積として計算しています。';
+}
+calc();
+</script>
+</body>
+</html>
